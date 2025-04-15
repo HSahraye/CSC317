@@ -1,33 +1,49 @@
 class Calculator {
     constructor() {
         this.display = document.querySelector('.display');
-        this.buttons = document.querySelectorAll('button');
         this.currentValue = '0';
         this.previousValue = null;
         this.operation = null;
         this.shouldResetDisplay = false;
         
-        this.initialize();
+        this.initializeEventListeners();
     }
 
-    initialize() {
-        this.buttons.forEach(button => {
-            button.addEventListener('click', () => this.handleButtonClick(button.textContent));
+    initializeEventListeners() {
+        // Button clicks
+        document.querySelectorAll('button').forEach(button => {
+            button.addEventListener('click', () => this.handleInput(button.textContent));
         });
 
-        // Add keyboard support
+        // Keyboard support
         document.addEventListener('keydown', (event) => {
+            event.preventDefault();
             const key = event.key;
-            if (key >= '0' && key <= '9' || key === '.' || 
-                key === '+' || key === '-' || key === '*' || key === '/' ||
-                key === 'Enter' || key === 'Escape' || key === '%') {
-                event.preventDefault();
-                this.handleButtonClick(key);
+
+            // Number keys (0-9) and decimal
+            if (/^[0-9.]$/.test(key)) {
+                this.handleInput(key);
+            }
+            // Operators
+            else if (['+', '-', '*', '/', '=', 'Enter'].includes(key)) {
+                let operator = key;
+                if (key === '/') operator = '÷';
+                if (key === '*') operator = '×';
+                if (key === 'Enter') operator = '=';
+                this.handleInput(operator);
+            }
+            // Clear (Escape key)
+            else if (key === 'Escape') {
+                this.handleInput('AC');
+            }
+            // Percentage
+            else if (key === '%') {
+                this.handleInput('%');
             }
         });
     }
 
-    handleButtonClick(value) {
+    handleInput(value) {
         if (value >= '0' && value <= '9' || value === '.') {
             this.handleNumber(value);
         } else if (value === 'AC') {
@@ -36,7 +52,7 @@ class Calculator {
             this.toggleSign();
         } else if (value === '%') {
             this.percentage();
-        } else if (value === '=' || value === 'Enter') {
+        } else if (value === '=') {
             this.calculate();
         } else {
             this.handleOperation(value);
@@ -49,10 +65,12 @@ class Calculator {
             this.shouldResetDisplay = false;
         }
 
+        // Handle decimal point
         if (number === '.' && this.currentValue.includes('.')) {
             return;
         }
 
+        // Handle leading zero
         if (this.currentValue === '0' && number !== '.') {
             this.currentValue = number;
         } else {
@@ -73,7 +91,7 @@ class Calculator {
     }
 
     calculate() {
-        if (!this.operation || this.shouldResetDisplay) return;
+        if (!this.operation || !this.previousValue) return;
 
         const prev = parseFloat(this.previousValue);
         const current = parseFloat(this.currentValue);
@@ -87,11 +105,9 @@ class Calculator {
                 result = prev - current;
                 break;
             case '×':
-            case '*':
                 result = prev * current;
                 break;
             case '÷':
-            case '/':
                 if (current === 0) {
                     this.currentValue = 'Error';
                     this.updateDisplay();
@@ -101,10 +117,30 @@ class Calculator {
                 break;
         }
 
-        this.currentValue = result.toString();
+        // Format the result
+        this.currentValue = this.formatNumber(result);
         this.operation = null;
         this.shouldResetDisplay = true;
         this.updateDisplay();
+    }
+
+    formatNumber(number) {
+        if (isNaN(number)) return 'Error';
+        
+        // Handle large numbers
+        if (Math.abs(number) > 999999999) {
+            return number.toExponential(3);
+        }
+        
+        // Convert to string and limit decimal places
+        let str = number.toString();
+        if (str.includes('.')) {
+            const parts = str.split('.');
+            if (parts[1].length > 8) {
+                return number.toFixed(8);
+            }
+        }
+        return str;
     }
 
     clear() {
@@ -116,44 +152,23 @@ class Calculator {
     }
 
     toggleSign() {
+        if (this.currentValue === '0' || this.currentValue === 'Error') return;
         this.currentValue = (parseFloat(this.currentValue) * -1).toString();
         this.updateDisplay();
     }
 
     percentage() {
+        if (this.currentValue === 'Error') return;
         this.currentValue = (parseFloat(this.currentValue) / 100).toString();
         this.updateDisplay();
     }
 
     updateDisplay() {
-        // Format the number to handle large numbers and decimals
-        let displayValue = this.currentValue;
-        if (displayValue !== 'Error') {
-            const num = parseFloat(displayValue);
-            if (!isNaN(num)) {
-                // Handle large numbers
-                if (Math.abs(num) > 999999999) {
-                    displayValue = num.toExponential(6);
-                } else {
-                    // Format to remove unnecessary decimal places
-                    displayValue = num.toString();
-                    if (displayValue.includes('.')) {
-                        displayValue = displayValue.replace(/\.?0+$/, '');
-                    }
-                }
-            }
-        }
-
-        // Limit display length
-        if (displayValue.length > 12) {
-            displayValue = displayValue.substring(0, 12);
-        }
-
-        this.display.textContent = displayValue;
+        this.display.textContent = this.currentValue;
     }
 }
 
-// Initialize the calculator when the page loads
+// Initialize calculator when the page loads
 document.addEventListener('DOMContentLoaded', () => {
     new Calculator();
 }); 
